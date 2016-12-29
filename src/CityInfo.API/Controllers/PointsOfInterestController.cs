@@ -15,11 +15,14 @@ namespace CityInfo.API.Controllers
     {
         private ILogger<PointsOfInterestController> _logger;
         private IMailService _mailService;
+        private ICityInfoRepository _cityInfoRepository;
 
-        public PointsOfInterestController(ILogger<PointsOfInterestController> logger, IMailService mailService)
+
+        public PointsOfInterestController(ILogger<PointsOfInterestController> logger, IMailService mailService, ICityInfoRepository cityInfoRepository)
         {
             _logger = logger;
             _mailService = mailService;
+            _cityInfoRepository = cityInfoRepository;
         }
 
         [HttpGet("{cityId}/pointsofinterest")]
@@ -27,26 +30,40 @@ namespace CityInfo.API.Controllers
         {
             try
             {
+
                 
-                var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-                if (city == null)
+                if (!_cityInfoRepository.CityExists(cityId))
                 {
                     _logger.LogInformation($"City with id {cityId} wasn't found when accessing points of interest.");
                     return NotFound();
                 }
 
-                var poisToRetrun = city.PointsOfInterest;
-                if (poisToRetrun == null)
-                {
+                var pointsOfInterestForCity = _cityInfoRepository.GetPointsOfInterestForCity(cityId);
 
-                    return NotFound();
-                }
-                else
+                var pointsOfInterestForCityResults = new List<PointOfInterestDto>();
+                
+                foreach (var poi in pointsOfInterestForCity)
                 {
-                    return Ok(poisToRetrun);
+                    pointsOfInterestForCityResults.Add(new PointOfInterestDto() {
+                        Id = poi.Id,
+                        Name = poi.Name,
+                        Description = poi.Description
+                    });
                 }
+
+                return Ok(pointsOfInterestForCityResults);
+
+                //if (poisToRetrun == null)
+                //{
+
+                //    return NotFound();
+                //}
+                //else
+                //{
+                //    return Ok(poisToRetrun);
+                //}
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 _logger.LogCritical($"City with id {cityId} wasn't found when accessing points of interest.");
                 return StatusCode(500, "A problem happened while handling your request.");
@@ -57,20 +74,41 @@ namespace CityInfo.API.Controllers
         [HttpGet("{cityId}/pointsofinterest/{id}", Name = "GetPointOfInterest")]
         public IActionResult GetPointOfInterest(int cityId, int id)
         {
-            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
-            if (city == null)
+            if (!_cityInfoRepository.CityExists(cityId))
+            {
+                _logger.LogInformation($"City with id {cityId} wasn't found when accessing points of interest.");
+                return NotFound();
+            }
+
+            var poi = _cityInfoRepository.GetPointOfInterestForCity(cityId, id);
+
+            if (poi == null)
             {
                 return NotFound();
             }
 
-            var poiToReturn = city.PointsOfInterest.FirstOrDefault(c => c.Id == id);
-            if (poiToReturn == null)
+            var poiResult = new PointOfInterestDto()
             {
-                return NotFound();
-            }
+                Id = poi.Id,
+                Name = poi.Name,
+                Description = poi.Description
+            };
+
+            return Ok(poiResult);
+            //var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id == cityId);
+            //if (city == null)
+            //{
+            //    return NotFound();
+            //}
+
+            //var poiToReturn = city.PointsOfInterest.FirstOrDefault(c => c.Id == id);
+            //if (poiToReturn == null)
+            //{
+            //    return NotFound();
+            //}
 
 
-            return Ok(poiToReturn);
+            //return Ok(poiToReturn);
         }
         [HttpPost("{cityId}/pointsofinterest")]
 
